@@ -63,7 +63,6 @@ jobs:
       matrix: ${{fromJson(needs.Config.outputs.TARGETS_CONFIG)}}
 
     outputs:
-      OPENWRT_ROOT_PATH: ${{ steps.clone.outputs.OPENWRT_ROOT_PATH }}
       SOURCE_OWNER: ${{ steps.env.outputs.SOURCE_OWNER }}
       SOURCE_REPO: ${{ steps.env.outputs.SOURCE_REPO }}
       DEVICE_PLATFORM: ${{ steps.env.outputs.DEVICE_PLATFORM }}
@@ -89,7 +88,6 @@ jobs:
           sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804)
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
-          mkdir -p workspace
 
       - name: Clone Source Code
         id: clone
@@ -128,8 +126,7 @@ jobs:
       - name: Compare Toolchain Hash
         id: hash
         run: |
-          cd $OPENWRT_ROOT_PATH
-          export CURRENT_HASH=$(git log --pretty=tformat:"%H" -n1 tools toolchain)
+          export CURRENT_HASH=$(curl -fsSL https://api.github.com/repos/$SOURCE_OWNER/$SOURCE_REPO/commits\?path\=toolchain | jq '.[0] | .sha' | sed 's/"//g')
           echo "CURRENT_HASH=$CURRENT_HASH" >> $GITHUB_ENV
           echo "::set-output name=CURRENT_HASH::$(echo $CURRENT_HASH)"
           echo "CURRENT_HASH is $CURRENT_HASH"
@@ -138,6 +135,16 @@ jobs:
           if [ -z "$CACHE_HASH" ] || [ "$CURRENT_HASH" != "$CACHE_HASH" ]; then
             echo "::set-output name=REBUILD_TOOLCHAIN::true"
           fi
+
+      - name: Clone Source Code
+        if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
+        id: clone
+        run: |
+          df -hT $PWD
+          mkdir -p workspace
+          git clone $SOURCE_URL -b $SOURCE_BRANCH workspace/openwrt
+          cd workspace/openwrt
+          echo "OPENWRT_ROOT_PATH=$PWD" >> $GITHUB_ENV
 
       - name: Generate Config File
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
@@ -220,7 +227,6 @@ jobs:
     steps:
       - name: Restore Variables
         run: |
-          echo "OPENWRT_ROOT_PATH=$(echo '${{needs.Toolchain.outputs.OPENWRT_ROOT_PATH}}')" >> $GITHUB_ENV
           echo "SOURCE_OWNER=$(echo '${{needs.Toolchain.outputs.SOURCE_OWNER}}')" >> $GITHUB_ENV
           echo "SOURCE_REPO=$(echo '${{needs.Toolchain.outputs.SOURCE_REPO}}')" >> $GITHUB_ENV
           echo "DEVICE_PLATFORM=$(echo '${{needs.Toolchain.outputs.DEVICE_PLATFORM}}')" >> $GITHUB_ENV
@@ -288,6 +294,9 @@ jobs:
           mkdir openwrt-ro openwrt workdir overlay
           sudo mount -o loop $TOOLCHAIN_IMAGE.img openwrt-ro
           sudo mount -t overlay overlay -o lowerdir=openwrt-ro,upperdir=overlay,workdir=workdir openwrt
+          cd workspace/openwrt
+          export OPENWRT_ROOT_PATH=$PWD
+          echo "OPENWRT_ROOT_PATH=$OPENWRT_ROOT_PATH" >> $GITHUB_ENV
           sudo chown runner:runner $OPENWRT_ROOT_PATH
           cd $OPENWRT_ROOT_PATH
           git pull
