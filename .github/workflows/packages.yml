@@ -173,17 +173,17 @@ jobs:
 
       - name: Deploy Files To Server
         env:
-          HOST: "${{ secrets.REMOTE_USER }}@${{ secrets.HOSTHATCH_IP }}"
+          HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
           SOURCE_PACKAGES: "${{ env.OPENWRT_SDK_PATH }}/bin/packages/${{ env.DEVICE_PLATFORM }}/"
           SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
-          DEST_PACKAGES: "${{ env.WEB_ROOT_PATH }}/snapshots/packages/${{ env.DEVICE_PLATFORM }}/"
-          DEST_FAILLOGS: "${{ env.WEB_ROOT_PATH }}/snapshots/faillogs/packages/${{ env.DEVICE_PLATFORM }}/"
-          REMOTE_PRIVATEKEY: "${{ secrets.HOSTHATCH_PRIVATEKEY }}"
+          DEST_PACKAGES: "${{ env.WEB_ROOT_PATH }}/buildbot/packages/${{ env.DEVICE_PLATFORM }}/"
+          DEST_FAILLOGS: "${{ env.WEB_ROOT_PATH }}/buildbot/faillogs/packages/${{ env.DEVICE_PLATFORM }}/"
+          REMOTE_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
         if: env.REMOTE_PRIVATEKEY != null
         run: |
           mkdir -p ~/.ssh/
           install -m 600 /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.HOSTHATCH_PRIVATEKEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_PRIVATEKEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST \
           bash -c "'mkdir -p $DEST_PACKAGES $DEST_FAILLOGS'"
