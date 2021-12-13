@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Clone Source Code
         run: |
-          git clone $SOURCE_URL -b $SOURCE_BRANCH openwrt
+          git clone --depth=1 $SOURCE_URL -b $SOURCE_BRANCH openwrt
 
       - name: Find Targets
         id: find-targets
