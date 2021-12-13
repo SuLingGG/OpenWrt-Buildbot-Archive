@@ -16,6 +16,7 @@ on:
 env:
   SOURCE_URL: https://github.com/immortalwrt/immortalwrt
   SOURCE_BRANCH: openwrt-18.06-k5.4
+  CURRENT_BRANCH: main
   WEB_ROOT_PATH: /data/dnmp/www/openwrt.cc
   TOOLCHAIN_TAG: toolchain
   TZ: Asia/Shanghai
