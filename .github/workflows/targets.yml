@@ -57,12 +57,6 @@ jobs:
       matrix: ${{fromJson(needs.Config.outputs.TARGETS_CONFIG)}}
 
     steps:
-      - name: Clean Environment
-        run: |
-          sudo umount /dev/loop*p1 || true
-          sudo losetup -D || true
-          sudo umount overlay || true
-
       - name: Initialization Environment
         env:
           DEBIAN_FRONTEND: noninteractive
