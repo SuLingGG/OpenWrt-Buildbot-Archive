@@ -176,11 +176,11 @@ jobs:
           echo -e "$(nproc) thread compile"
           make toolchain/compile -j$(nproc) BUILD_LOG=1 || make toolchain/compile -j1 V=s
 
-      - name: Upload Job Logs
-        if: always()
+      - name: Upload Toolchain Logs
+        if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         uses: actions/upload-artifact@main
         with:
-          name: Logs-${{ github.job }}
+          name: Logs-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
           path: ${{ env.OPENWRT_ROOT_PATH }}/logs
           if-no-files-found: ignore
 
@@ -201,7 +201,7 @@ jobs:
           split -d -b 1900M $TOOLCHAIN_NAME $GITHUB_WORKSPACE/output/$TOOLCHAIN_NAME.img.
           rm $TOOLCHAIN_NAME
           cd $OPENWRT_ROOT_PATH
-          echo $CURRENT_HASH > $GITHUB_WORKSPACE/output/toolchain-$SOURCE_OWNER-$SOURCE_REPO-$SOURCE_BRANCH-$DEVICE_TARGET-$DEVICE_SUBTARGET.hash
+          echo $CURRENT_HASH > $GITHUB_WORKSPACE/output/$TOOLCHAIN_NAME.hash
           ls -lh $GITHUB_WORKSPACE/output
 
       - name: Upload Toolchain Image To Release
@@ -332,10 +332,10 @@ jobs:
           rsync -aq --files-from=failed-packages.txt logs/ faillogs/
 
       - name: Upload Failed Logs
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@main
         with:
-          name: Logs-${{ github.job }}
+          name: Logs-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
           path: ${{ env.OPENWRT_ROOT_PATH }}/faillogs/
           if-no-files-found: ignore
 
