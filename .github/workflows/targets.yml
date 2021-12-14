@@ -310,7 +310,9 @@ jobs:
           cat files/etc/opkg/distfeeds.conf
           echo -e "\n---- Distfeeds.conf End----\n"
           mkdir -p bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION
-          rsync --remove-source-files --include=/kmod-*.ipk --exclude=* -av bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/ bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
+          rsync --remove-source-files --include=/kmod-*.ipk --exclude=* -av \
+            $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/ \
+            $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
           make package/index V=s PACKAGE_SUBDIRS=bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
 
       - name: Generate Firmware
