@@ -317,6 +317,7 @@ jobs:
 
       - name: Generate Firmware
         run: |
+          cd $OPENWRT_ROOT_PATH
           make package/index
           make package/install -j$(nproc) BUILD_LOG=1 || make package/install -j1 V=s
           make target/install -j$(nproc) BUILD_LOG=1 || make target/install -j1 V=s
