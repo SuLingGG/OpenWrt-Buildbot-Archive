@@ -265,8 +265,8 @@ jobs:
       - name: Generate Config File
         run: |
           cd $OPENWRT_ROOT_PATH
-          echo CONFIG_TARGET_$DEVICE_TARGET=y > .config
-          echo CONFIG_TARGET_$DEVICE_TARGET_$DEVICE_SUBTARGET=y >> .config
+          echo CONFIG_TARGET_${DEVICE_TARGET}=y > .config
+          echo CONFIG_TARGET_${DEVICE_TARGET}_${DEVICE_SUBTARGET}=y >> .config
           cat $GITHUB_WORKSPACE/config/targets.config >> .config
           if echo $DEVICE_TARGET | grep -q x86; then
             cat $GITHUB_WORKSPACE/config/x86-extra.config >> .config
