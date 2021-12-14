@@ -289,8 +289,8 @@ jobs:
           cd $OPENWRT_ROOT_PATH
           echo -e "$(nproc) thread compile"
           make diffconfig buildversion feedsversion
-          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1
-          make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1
+          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || make target/compile -j1 V=s
+          make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1 || make package/compile -j1 V=s
 
       - name: Add Kmods Feed
         run: |
