@@ -73,7 +73,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install squashfs-tools $(curl -fsSL git.io/depends-ubuntu-1804)
+          sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804)
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
 
@@ -117,6 +117,17 @@ jobs:
           cd $OPENWRT_SDK_PATH
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+
+      - name: Add Missing Kernel Symbols
+        run: |
+          cd $OPENWRT_ROOT_PATH
+          export KERNEL_PATCHVER=$(cat target/linux/$DEVICE_TARGET/Makefile | grep KERNEL_PATCHVER | awk -F '=' '{print $NF}')
+          if [ "$KERNEL_PATCHVER" == "5.10" ]; then
+            cat $GITHUB_WORKSPACE/data/symbols/config-5.10 >> target/linux/generic/config-5.10
+          elif
+            [ "$KERNEL_PATCHVER" == "5.4" ]; then
+            cat $GITHUB_WORKSPACE/data/symbols/config-5.4 >> target/linux/generic/config-5.4
+          fi
 
       - name: Generate Config File
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
