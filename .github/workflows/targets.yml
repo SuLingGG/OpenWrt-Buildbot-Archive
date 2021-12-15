@@ -278,7 +278,7 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Add Missing Kernel Symbols
+      - name: Add Kernel Symbols
         run: |
           cd $OPENWRT_ROOT_PATH
           export KERNEL_PATCHVER=$(cat target/linux/$DEVICE_TARGET/Makefile | grep KERNEL_PATCHVER | awk -F '=' '{print $NF}')
