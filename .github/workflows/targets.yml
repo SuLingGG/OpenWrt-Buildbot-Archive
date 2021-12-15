@@ -140,7 +140,7 @@ jobs:
           export CURRENT_HASH=$(echo $TOOLS_HASH-$TOOLCHAIN_HASH)
           echo "CURRENT_HASH=$CURRENT_HASH" >> $GITHUB_ENV
           echo "CURRENT_HASH is $CURRENT_HASH"
-          export CACHE_HASH=$(curl -fSsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/toolchain-$TARGET_INFO.hash)
+          export CACHE_HASH=$(curl -fSsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/toolchain-${TARGET_INFO}.hash)
           echo "CACHE_HASH is $CACHE_HASH"
           if [ -z "$CACHE_HASH" ] || [ "$CURRENT_HASH" != "$CACHE_HASH" ]; then
             echo "::set-output name=REBUILD_TOOLCHAIN::true"
@@ -203,12 +203,12 @@ jobs:
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         run: |
           cd workspace
-          mksquashfs openwrt toolchain-$TARGET_INFO.img -force-gid 1001 -force-uid 1001 -comp zstd
+          mksquashfs openwrt toolchain-${TARGET_INFO}.img -force-gid 1001 -force-uid 1001 -comp zstd
           mkdir -p $GITHUB_WORKSPACE/output
-          split -d -b 1900M toolchain-$TARGET_INFO.img $GITHUB_WORKSPACE/output/toolchain-$TARGET_INFO.img.
-          rm toolchain-$TARGET_INFO.img
+          split -d -b 1900M toolchain-${TARGET_INFO}.img $GITHUB_WORKSPACE/output/toolchain-${TARGET_INFO}.img.
+          rm toolchain-${TARGET_INFO}.img
           cd $OPENWRT_ROOT_PATH
-          echo $CURRENT_HASH > $GITHUB_WORKSPACE/output/toolchain-$TARGET_INFO.hash
+          echo $CURRENT_HASH > $GITHUB_WORKSPACE/output/toolchain-${TARGET_INFO}.hash
           ls -lh $GITHUB_WORKSPACE/output
 
       - name: Delete Old Toolchain Assets
@@ -244,10 +244,10 @@ jobs:
           cd workspace
           for i in {0..9}
           do
-            curl -fsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/toolchain-${TARGET_INFO}.img.0$i >> toolchain-$TARGET_INFO.img || break
+            curl -fsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/toolchain-${TARGET_INFO}.img.0$i >> toolchain-${TARGET_INFO}.img || break
           done
           mkdir -p openwrt-ro openwrt workdir overlay
-          sudo mount -o loop toolchain-$TARGET_INFO.img openwrt-ro
+          sudo mount -o loop toolchain-${TARGET_INFO}.img openwrt-ro
           sudo mount -t overlay overlay -o lowerdir=openwrt-ro,upperdir=overlay,workdir=workdir openwrt
           sudo chown runner:runner $OPENWRT_ROOT_PATH
           cd $OPENWRT_ROOT_PATH
