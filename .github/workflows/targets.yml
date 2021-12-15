@@ -300,11 +300,15 @@ jobs:
           cd $OPENWRT_ROOT_PATH
           make download -j64
 
+      - name: Generate Target Information
+        run: |
+          cd $OPENWRT_ROOT_PATH
+          make diffconfig buildversion feedsversion
+
       - name: Compile Kmods
         run: |
           cd $OPENWRT_ROOT_PATH
           echo -e "$(nproc) thread compile"
-          make diffconfig buildversion feedsversion
           make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
@@ -312,6 +316,15 @@ jobs:
           cd $OPENWRT_ROOT_PATH
           echo -e "$(nproc) thread compile"
           make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1 || make package/compile -j1 V=s
+
+      - name: Generate Firmware
+        run: |
+          cd $OPENWRT_ROOT_PATH
+          make package/index
+          make package/install -j$(nproc) BUILD_LOG=1 || make package/install -j1 V=s
+          make target/install -j$(nproc) BUILD_LOG=1 || make target/install -j1 V=s
+          make json_overview_image_info
+          make checksum
 
       - name: Add Kmods Feed
         run: |
@@ -335,15 +348,7 @@ jobs:
             $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/ \
             $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
           make package/index V=s PACKAGE_SUBDIRS=bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
-
-      - name: Generate Firmware
-        run: |
-          cd $OPENWRT_ROOT_PATH
-          make package/index
-          make package/install -j$(nproc) BUILD_LOG=1 || make package/install -j1 V=s
-          make target/install -j$(nproc) BUILD_LOG=1 || make target/install -j1 V=s
-          make json_overview_image_info
-          make checksum
+          make package/index V=s PACKAGE_SUBDIRS=bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/
 
       - name: Collect Failed Logs
         if: always()
