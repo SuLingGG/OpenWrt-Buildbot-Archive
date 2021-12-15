@@ -244,7 +244,7 @@ jobs:
           cd workspace
           for i in {0..9}
           do
-            curl -fsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/toolchain-$TARGET_INFO.img.0$i >> toolchain-$TARGET_INFO.img || break
+            curl -fsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/toolchain-${TARGET_INFO}.img.0$i >> toolchain-$TARGET_INFO.img || break
           done
           mkdir -p openwrt-ro openwrt workdir overlay
           sudo mount -o loop toolchain-$TARGET_INFO.img openwrt-ro
