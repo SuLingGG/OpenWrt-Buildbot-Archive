@@ -99,7 +99,9 @@ jobs:
           chmod 777 $GITHUB_WORKSPACE/tmp
           sudo cp -rp /tmp/* $GITHUB_WORKSPACE/tmp
           sudo mount -B $GITHUB_WORKSPACE/tmp /tmp
-          df -hT $GITHUB_WORKSPACE
+
+      - name: Print Disk Usage Information
+        run: |
           sudo btrfs filesystem usage $GITHUB_WORKSPACE
 
       - name: Checkout
@@ -149,7 +151,6 @@ jobs:
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         id: clone
         run: |
-          df -hT $PWD
           git clone $SOURCE_URL -b $SOURCE_BRANCH $OPENWRT_ROOT_PATH
 
       - name: Generate Config File
@@ -398,6 +399,11 @@ jobs:
           ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST bash -c "'mkdir -p $DEST_TARGETS $DEST_FAILLOGS'"
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_TARGETS $HOST:$DEST_TARGETS
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_FAILLOGS $HOST:$DEST_FAILLOGS
+
+      - name: Print Disk Usage Information
+        if: always()
+        run: |
+          sudo btrfs filesystem usage $GITHUB_WORKSPACE
 
       # - name: Trigger A New Workflow
       #   if: always()
