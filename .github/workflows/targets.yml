@@ -182,14 +182,12 @@ jobs:
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         run: |
           cd $OPENWRT_ROOT_PATH
-          echo -e "$(nproc) thread compile"
           make tools/compile -j$(nproc) BUILD_LOG=1 || make tools/compile -j1 V=s
 
       - name: Compile Toolchain
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         run: |
           cd $OPENWRT_ROOT_PATH
-          echo -e "$(nproc) thread compile"
           make toolchain/compile -j$(nproc) BUILD_LOG=1 || make toolchain/compile -j1 V=s
 
       - name: Upload Toolchain Logs
@@ -326,17 +324,20 @@ jobs:
           cd $OPENWRT_ROOT_PATH
           make diffconfig buildversion feedsversion
 
+      - name: Generate Kernel Config
+        run: |
+          cd $OPENWRT_ROOT_PATH
+          sed -i 's/toolchain\/install//g' include/toplevel.mk
+          yes "" | make kernel_oldconfig CONFIG_TARGET=$DEVICE_SUBTARGET
+
       - name: Compile Kmods
         run: |
           cd $OPENWRT_ROOT_PATH
-          echo -e "$(nproc) thread compile"
-          yes "" | make kernel_oldconfig CONFIG_TARGET=$DEVICE_SUBTARGET
           make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
         run: |
           cd $OPENWRT_ROOT_PATH
-          echo -e "$(nproc) thread compile"
           make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1 || make package/compile -j1 V=s
 
       - name: Generate Firmware

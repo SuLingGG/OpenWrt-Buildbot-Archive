@@ -127,16 +127,16 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Add Missing Kernel Symbols
-        run: |
-          cd $OPENWRT_ROOT_PATH
-          export KERNEL_PATCHVER=$(cat target/linux/$DEVICE_TARGET/Makefile | grep KERNEL_PATCHVER | awk -F '=' '{print $NF}')
-          if [ "$KERNEL_PATCHVER" == "5.10" ]; then
-            cat $GITHUB_WORKSPACE/data/symbols/config-5.10 >> target/linux/generic/config-5.10
-          elif
-            [ "$KERNEL_PATCHVER" == "5.4" ]; then
-            cat $GITHUB_WORKSPACE/data/symbols/config-5.4 >> target/linux/generic/config-5.4
-          fi
+      # - name: Add Missing Kernel Symbols
+      #   run: |
+      #     cd $OPENWRT_SDK_PATH
+      #     export KERNEL_PATCHVER=$(cat target/linux/$DEVICE_TARGET/Makefile | grep KERNEL_PATCHVER | awk -F '=' '{print $NF}')
+      #     if [ "$KERNEL_PATCHVER" == "5.10" ]; then
+      #       cat $GITHUB_WORKSPACE/data/symbols/config-5.10 >> target/linux/generic/config-5.10
+      #     elif
+      #       [ "$KERNEL_PATCHVER" == "5.4" ]; then
+      #       cat $GITHUB_WORKSPACE/data/symbols/config-5.4 >> target/linux/generic/config-5.4
+      #     fi
 
       - name: Generate Config File
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
@@ -159,17 +159,25 @@ jobs:
           cp -rf /data/cache/dl .
           make download -j64
 
+      - name: Generate Target Information
+        run: |
+          cd $OPENWRT_SDK_PATH
+          make diffconfig buildversion feedsversion
+
+      - name: Generate Kernel Config
+        run: |
+          cd $OPENWRT_SDK_PATH
+          sed -i 's/toolchain\/install//g' include/toplevel.mk
+          yes "" | make kernel_oldconfig CONFIG_TARGET=$DEVICE_SUBTARGET
+
       - name: Compile Kmods
         run: |
           cd $OPENWRT_SDK_PATH
-          echo -e "$(nproc) thread compile"
-          make diffconfig buildversion feedsversion
-          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || yes "" | make target/compile -j1 V=s IGNORE_ERRORS=1
+          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
         run: |
           cd $OPENWRT_SDK_PATH
-          echo -e "$(nproc) thread compile"
           make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1
 
       - name: Collect Failed Logs
@@ -194,7 +202,7 @@ jobs:
       - name: Deploy Failed Logs To Server
         env:
           HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
-          SOURCE_FAILLOGS: "${{ env.OPENWRT_ROOT_PATH }}/faillogs/"
+          SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
           DEST_FAILLOGS: "${{ env.WEB_ROOT_PATH }}/buildbot/faillogs/packages/${{ env.DEVICE_PLATFORM }}/"
           SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
         if: env.SERVER_PRIVATEKEY != null && failure()
