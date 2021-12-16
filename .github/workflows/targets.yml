@@ -335,6 +335,10 @@ jobs:
 
       - name: Add Kmods Feed
         run: |
+          cd bin/targets/$DEVICE_TARGET
+          if [ "$(ls)" != "$DEVICE_SUBTARGET" ]; then
+            mv $(ls) $DEVICE_SUBTARGET
+          fi
           cd $OPENWRT_ROOT_PATH
           export TOPDIR=$(pwd)
           export KERNEL_VERSION="$(make --no-print-directory -C target/linux \
