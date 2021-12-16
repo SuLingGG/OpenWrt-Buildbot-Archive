@@ -41,7 +41,7 @@ jobs:
       - name: Find Targets
         id: find-targets
         run: |
-          if [ "${{ github.event.inputs.TARGET }}" = "all" ]; then
+          if [ "${{ github.event.inputs.TARGET }}" == "all" ]; then
             export TARGETS="$(perl ./scripts/dump-target-info.pl targets 2>/dev/null  | awk '{ print $2,$1 }' | sed 's/ /\//g')"
           else
             export TARGETS="${{ github.event.inputs.TARGET }}"
