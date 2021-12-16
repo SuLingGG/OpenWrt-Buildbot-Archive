@@ -127,17 +127,6 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      # - name: Add Missing Kernel Symbols
-      #   run: |
-      #     cd $OPENWRT_SDK_PATH
-      #     export KERNEL_PATCHVER=$(cat target/linux/$DEVICE_TARGET/Makefile | grep KERNEL_PATCHVER | awk -F '=' '{print $NF}')
-      #     if [ "$KERNEL_PATCHVER" == "5.10" ]; then
-      #       cat $GITHUB_WORKSPACE/data/symbols/config-5.10 >> target/linux/generic/config-5.10
-      #     elif
-      #       [ "$KERNEL_PATCHVER" == "5.4" ]; then
-      #       cat $GITHUB_WORKSPACE/data/symbols/config-5.4 >> target/linux/generic/config-5.4
-      #     fi
-
       - name: Generate Config File
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         run: |
@@ -166,11 +155,9 @@ jobs:
 
       - name: Compile Kmods
         run: |
-          cd $OPENWRT_SDK_PATH
+          cd $OPENWRT_ROOT_PATH
           make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
-            sed -i 's/toolchain\/install//g' include/toplevel.mk && \
-            yes "" | make kernel_oldconfig CONFIG_TARGET=$DEVICE_SUBTARGET && \
-            make target/compile -j1 V=s IGNORE_ERRORS=1
+          yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
         run: |
