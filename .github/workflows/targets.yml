@@ -327,6 +327,8 @@ jobs:
           make diffconfig buildversion feedsversion
 
       - name: Compile Kmods
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           cd $OPENWRT_ROOT_PATH
           echo -e "$(nproc) thread compile"
