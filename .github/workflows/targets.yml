@@ -12,6 +12,11 @@ on:
   repository_dispatch:
     types: [targets]
   workflow_dispatch:
+    inputs:
+      TARGET:
+        description: "Targets to build (x86_64/x86/64)"
+        required: false
+        default: "all"
 
 env:
   SOURCE_URL: https://github.com/immortalwrt/immortalwrt
@@ -36,8 +41,12 @@ jobs:
       - name: Find Targets
         id: find-targets
         run: |
+          if [ "${{ github.event.inputs.TARGET }}" = "all" ]; then
+            export TARGETS="$(perl ./scripts/dump-target-info.pl targets 2>/dev/null  | awk '{ print $2,$1 }' | sed 's/ /\//g')"
+          else
+            export TARGETS="${{ github.event.inputs.TARGET }}"
+          fi
           cd openwrt
-          TARGETS="$(perl ./scripts/dump-target-info.pl targets 2>/dev/null  | awk '{ print $2,$1 }' | sed 's/ /\//g')"
           JSON='{"config": ["default"], "targets":['
           FIRST=1
           for TARGET in $TARGETS; do
@@ -279,16 +288,16 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Add Kernel Symbols
-        run: |
-          cd $OPENWRT_ROOT_PATH
-          export KERNEL_PATCHVER=$(cat target/linux/$DEVICE_TARGET/Makefile | grep KERNEL_PATCHVER | awk -F '=' '{print $NF}')
-          if [ "$KERNEL_PATCHVER" == "5.10" ]; then
-            cat $GITHUB_WORKSPACE/data/symbols/config-5.10 >> target/linux/generic/config-5.10
-          elif
-            [ "$KERNEL_PATCHVER" == "5.4" ]; then
-            cat $GITHUB_WORKSPACE/data/symbols/config-5.4 >> target/linux/generic/config-5.4
-          fi
+      # - name: Add Kernel Symbols
+      #   run: |
+      #     cd $OPENWRT_ROOT_PATH
+      #     export KERNEL_PATCHVER=$(cat target/linux/$DEVICE_TARGET/Makefile | grep KERNEL_PATCHVER | awk -F '=' '{print $NF}')
+      #     if [ "$KERNEL_PATCHVER" == "5.10" ]; then
+      #       cat $GITHUB_WORKSPACE/data/symbols/config-5.10 >> target/linux/generic/config-5.10
+      #     elif
+      #       [ "$KERNEL_PATCHVER" == "5.4" ]; then
+      #       cat $GITHUB_WORKSPACE/data/symbols/config-5.4 >> target/linux/generic/config-5.4
+      #     fi
 
       - name: Generate Config File
         run: |
@@ -307,7 +316,7 @@ jobs:
           cat .config
           echo -e "\n---- Whole Config End ----\n"
 
-      - name: Download DL Package
+      - name: Download Source Packages
         run: |
           cd $OPENWRT_ROOT_PATH
           make download -j64
@@ -321,7 +330,7 @@ jobs:
         run: |
           cd $OPENWRT_ROOT_PATH
           echo -e "$(nproc) thread compile"
-          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
+          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || yes "" | make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
         run: |

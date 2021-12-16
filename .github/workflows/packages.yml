@@ -12,6 +12,11 @@ on:
   repository_dispatch:
     types: [packages]
   workflow_dispatch:
+    inputs:
+      TARGET:
+        description: "Targets to build (x86_64/x86/64)"
+        required: false
+        default: "all"
 
 env:
   SOURCE_URL: https://github.com/immortalwrt/immortalwrt
@@ -36,8 +41,12 @@ jobs:
       - name: Find Targets
         id: find-targets
         run: |
+          if [ "${{ github.event.inputs.TARGET }}" = "all" ]; then
+            export TARGETS="$(perl ./scripts/dump-target-info.pl architectures 2>/dev/null | awk '{ print $1,$2 }' | sed 's/ /\//g')"
+          else
+            export TARGETS="${{ github.event.inputs.TARGET }}"
+          fi
           cd openwrt
-          TARGETS="$(perl ./scripts/dump-target-info.pl architectures 2>/dev/null | awk '{ print $1,$2 }' | sed 's/ /\//g')"
           JSON='{"config": ["default"], "targets":['
           FIRST=1
           for TARGET in $TARGETS; do
@@ -144,7 +153,7 @@ jobs:
           cat .config
           echo -e "\n---- Whole Config End ----\n"
 
-      - name: Download DL Package
+      - name: Download Source Packages
         run: |
           cd $OPENWRT_SDK_PATH
           cp -rf /data/cache/dl .
@@ -155,7 +164,7 @@ jobs:
           cd $OPENWRT_SDK_PATH
           echo -e "$(nproc) thread compile"
           make diffconfig buildversion feedsversion
-          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
+          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || yes "" | make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
         run: |
