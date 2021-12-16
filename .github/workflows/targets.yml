@@ -327,7 +327,7 @@ jobs:
       - name: Compile Kmods
         run: |
           cd $OPENWRT_ROOT_PATH
-          bash -c "yes || true" | make target/compile -j1 V=s IGNORE_ERRORS=1
+          yes "" | make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
         run: |
