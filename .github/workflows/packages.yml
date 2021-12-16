@@ -189,7 +189,7 @@ jobs:
           SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
           DEST_FAILLOGS: "${{ env.WEB_ROOT_PATH }}/buildbot/faillogs/packages/${{ env.DEVICE_PLATFORM }}/"
           SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
-        if: env.SERVER_PRIVATEKEY != null && failure()
+        if: env.SERVER_PRIVATEKEY != null && always()
         run: |
           mkdir -p ~/.ssh/
           install -m 600 /dev/null ~/.ssh/id_rsa
