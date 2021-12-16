@@ -327,10 +327,12 @@ jobs:
           make diffconfig buildversion feedsversion
 
       - name: Compile Kmods
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           cd $OPENWRT_ROOT_PATH
           echo -e "$(nproc) thread compile"
-          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || yes "" | make target/compile -j1 V=s IGNORE_ERRORS=1
+          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
         run: |
