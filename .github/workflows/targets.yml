@@ -13,7 +13,7 @@ on:
     types: [targets]
   workflow_dispatch:
     inputs:
-      input_target:
+      INPUT_TARGET:
         description: "Target to build (platform/target/subtarget)"
         required: false
         default: "all"
@@ -31,7 +31,7 @@ jobs:
     name: Generate Config
     runs-on: ubuntu-20.04
     outputs:
-      TARGETS: ${{ steps.find-targets.outputs.targets }}
+      TARGETS: ${{ steps.find-targets.outputs.TARGETS }}
 
     steps:
       - name: Clone Source Code
@@ -41,12 +41,12 @@ jobs:
       - name: Find Targets
         id: find-targets
         run: |
-          if [ "${{ github.event.inputs.input_target }}" == "all" ]; then
-            export targets="$(perl ./scripts/dump-target-info.pl targets 2>/dev/null  | awk '{ print $2,$1 }' | sed 's/ /\//g')"
-          else
-            export targets="${{ github.event.inputs.input_target }}"
-          fi
           cd openwrt
+          if [ "${{ github.event.inputs.INPUT_TARGET }}" == "all" ]; then
+            export TARGETS="$(perl ./scripts/dump-target-info.pl targets 2>/dev/null  | awk '{ print $2,$1 }' | sed 's/ /\//g')"
+          else
+            export TARGETS="${{ github.event.inputs.INPUT_TARGET }}"
+          fi
           JSON='{"config": ["default"], "targets":['
           FIRST=1
           for TARGET in $TARGETS; do
