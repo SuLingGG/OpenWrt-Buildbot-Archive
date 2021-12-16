@@ -327,9 +327,8 @@ jobs:
       - name: Compile Kmods
         run: |
           cd $OPENWRT_ROOT_PATH
+          sed -i 's/yes.*/\$\(HOST_KMAKE\) olddefconfig/g' toolchain/kernel-headers/Makefile
           make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
-            sed -i 's/toolchain\/install//g' include/toplevel.mk && \
-            yes "" | make kernel_oldconfig CONFIG_TARGET=$DEVICE_SUBTARGET && \
             make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
