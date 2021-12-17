@@ -358,6 +358,8 @@ jobs:
           rsync --remove-source-files --include=/kmod-*.ipk --exclude=* -av \
             $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/ \
             $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
+          cp -f bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/kernel* \
+            bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION
           make package/index V=s PACKAGE_SUBDIRS=bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
           make package/index V=s PACKAGE_SUBDIRS=bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/
 
@@ -410,6 +412,20 @@ jobs:
           ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST bash -c "'mkdir -p $DEST_TARGETS $DEST_FAILLOGS'"
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_TARGETS $HOST:$DEST_TARGETS
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_FAILLOGS $HOST:$DEST_FAILLOGS
+
+      - name: Deploy Kmod Packages To Backblaze
+        env:
+          B2_BUCKETNAME: "${{ secrets.B2_BUCKETNAME }}"
+          B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
+          B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
+          SOURCE_TARGETS: "${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/kmods/${{ env.KERNEL_VERSION }}/"
+          DEST_TARGETS: "b2://${{ env.B2_BUCKETNAME }}/snapshots/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/kmods/${{ env.KERNEL_VERSION }}/"
+        if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
+        run: |
+          sudo wget -q -O /bin/b2 https://github.com/Backblaze/B2_Command_Line_Tool/releases/latest/download/b2-linux
+          sudo chmod +x /bin/b2
+          b2 authorize-account $B2_APPLICATION_KEY_ID $B2_APPLICATION_KEY
+          b2 sync --noProgress --replaceNewer $SOURCE_TARGETS $DEST_TARGETS
 
       - name: Print Disk Usage Information
         if: always()
