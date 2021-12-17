@@ -335,7 +335,7 @@ jobs:
 
       - name: Add Kmods Feed
         run: |
-          cd bin/targets/$DEVICE_TARGET
+          cd $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET
           if [ "$(ls)" != "$DEVICE_SUBTARGET" ]; then
             mv $(ls) $DEVICE_SUBTARGET
           fi
@@ -413,7 +413,7 @@ jobs:
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_TARGETS $HOST:$DEST_TARGETS
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_FAILLOGS $HOST:$DEST_FAILLOGS
 
-      - name: Deploy Kmod Packages To Backblaze
+      - name: Deploy Kmods To Backblaze
         env:
           B2_BUCKETNAME: "${{ secrets.B2_BUCKETNAME }}"
           B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
