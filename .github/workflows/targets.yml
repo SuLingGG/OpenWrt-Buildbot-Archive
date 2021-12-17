@@ -403,7 +403,7 @@ jobs:
           SOURCE_TARGETS: "${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
           DEST_TARGETS: "${{ env.WEB_ROOT_PATH }}/buildbot/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
           SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
-        if: env.SERVER_PRIVATEKEY != null
+        if: env.SERVER_PRIVATEKEY != null && always()
         run: |
           mkdir -p ~/.ssh/
           install -m 600 /dev/null ~/.ssh/id_rsa
