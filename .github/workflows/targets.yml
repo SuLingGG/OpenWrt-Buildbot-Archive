@@ -324,14 +324,12 @@ jobs:
           cd $OPENWRT_ROOT_PATH
           make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1 || make package/compile -j1 V=s
 
-      - name: Generate Firmware
+      - name: Generate Firmware Tools
         run: |
           cd $OPENWRT_ROOT_PATH
-          make package/index
-          make package/install -j$(nproc) BUILD_LOG=1 || make package/install -j1 V=s
-          make target/install -j$(nproc) BUILD_LOG=1 || make target/install -j1 V=s
-          make json_overview_image_info
-          make checksum
+          make target/imagebuilder/compile
+          make target/sdk/compile
+          make target/toolchain/compile
 
       - name: Add Kmods Feed
         run: |
@@ -345,6 +343,16 @@ jobs:
             val.LINUX_VERSION val.LINUX_RELEASE val.LINUX_VERMAGIC | \
             tr '\n' '-' | head -c -1)"
           echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
+          mkdir -p bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION
+          rsync --remove-source-files --include=/kmod-*.ipk --exclude=* -av \
+            $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/ \
+            $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
+          cp -f bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/kernel* \
+            bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION
+
+      - name: Set Opkg Configuration
+        run: |
+          cd $OPENWRT_ROOT_PATH
           mkdir -p files/etc/opkg/
           cp $GITHUB_WORKSPACE/data/opkg/distfeeds.conf files/etc/opkg
           sed -i "s/DEVICE_TARGET/$DEVICE_TARGET/g; \
@@ -354,14 +362,25 @@ jobs:
           echo -e "\n---- Distfeeds.conf Start----\n"
           cat files/etc/opkg/distfeeds.conf
           echo -e "\n---- Distfeeds.conf End----\n"
-          mkdir -p bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION
-          rsync --remove-source-files --include=/kmod-*.ipk --exclude=* -av \
-            $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/ \
-            $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
-          cp -f bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/kernel* \
-            bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION
+
+      - name: Generate Packages Index
+        run: |
+          cd $OPENWRT_ROOT_PATH
+          make package/index V=s PACKAGE_SUBDIRS=bin/packages/$DEVICE_PLATFORM/
           make package/index V=s PACKAGE_SUBDIRS=bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/kmods/$KERNEL_VERSION/
           make package/index V=s PACKAGE_SUBDIRS=bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/packages/
+
+      - name: Generate Firmware
+        run: |
+          tar -xf $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/*imagebuilder*.tar.xz -C .
+          cd $(ls | grep imagebuilder)
+          export PROFILE_NAME=$(make val.PROFILE_NAMES | sed 's/DEVICE_//g')
+          export TARGET_CONFIG=$(cat $GITHUB_WORKSPACE/config/targets.config | grep CONFIG_TARGET | awk 'gsub(/\r/," "){printf $0;next}')
+          for PROFILE in `echo $PROFILE_NAME`;
+            do
+            make image PROFILE=$PROFILE FILES="files" $TARGET_CONFIG || true;
+          done
+          mv -f bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/* $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/
 
       - name: Collect Failed Logs
         if: always()
@@ -388,7 +407,7 @@ jobs:
           SOURCE_FAILLOGS: "${{ env.OPENWRT_ROOT_PATH }}/faillogs/"
           DEST_FAILLOGS: "${{ env.WEB_ROOT_PATH }}/buildbot/faillogs/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
           SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
-        if: env.SERVER_PRIVATEKEY != null && failure()
+        if: env.SERVER_PRIVATEKEY != null && always()
         run: |
           mkdir -p ~/.ssh/
           install -m 600 /dev/null ~/.ssh/id_rsa
@@ -403,7 +422,7 @@ jobs:
           SOURCE_TARGETS: "${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
           DEST_TARGETS: "${{ env.WEB_ROOT_PATH }}/buildbot/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
           SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
-        if: env.SERVER_PRIVATEKEY != null && always()
+        if: env.SERVER_PRIVATEKEY != null
         run: |
           mkdir -p ~/.ssh/
           install -m 600 /dev/null ~/.ssh/id_rsa
@@ -415,11 +434,10 @@ jobs:
 
       - name: Deploy Kmods To Backblaze
         env:
-          B2_BUCKETNAME: "${{ secrets.B2_BUCKETNAME }}"
-          B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
           B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
+          B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
           SOURCE_TARGETS: "${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/kmods/${{ env.KERNEL_VERSION }}/"
-          DEST_TARGETS: "b2://${{ env.B2_BUCKETNAME }}/snapshots/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/kmods/${{ env.KERNEL_VERSION }}/"
+          DEST_TARGETS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/kmods/${{ env.KERNEL_VERSION }}/"
         if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
         run: |
           sudo wget -q -O /bin/b2 https://github.com/Backblaze/B2_Command_Line_Tool/releases/latest/download/b2-linux

@@ -155,7 +155,7 @@ jobs:
 
       - name: Compile Kmods
         run: |
-          cd $OPENWRT_ROOT_PATH
+          cd $OPENWRT_SDK_PATH
           make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
           yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
 
@@ -163,6 +163,11 @@ jobs:
         run: |
           cd $OPENWRT_SDK_PATH
           make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1
+
+      - name: Generate Packages Index
+        run: |
+          cd $OPENWRT_SDK_PATH
+          make package/index V=s PACKAGE_SUBDIRS=bin/packages/$DEVICE_PLATFORM/
 
       - name: Collect Failed Logs
         if: always()
@@ -221,12 +226,12 @@ jobs:
           sudo rsync --delete-before --force -r empty/ $OPENWRT_SDK_PATH/
           rm -rf empty $OPENWRT_SDK_PATH
 
-      - name: Trigger A New Workflow
-        if: always()
-        env:
-          REPOSITORY_DISPATCH_SECRET: "${{ secrets.REPOSITORY_DISPATCH_SECRET }}"
-        run: |
-          curl -X POST https://api.github.com/repos/$GITHUB_REPOSITORY/dispatches \
-            -H "Accept: application/vnd.github.everest-preview+json" \
-            -H "Authorization: token $REPOSITORY_DISPATCH_SECRET" \
-            --data '{"event_type": "packages"}'
+      # - name: Trigger A New Workflow
+      #   if: always()
+      #   env:
+      #     REPOSITORY_DISPATCH_SECRET: "${{ secrets.REPOSITORY_DISPATCH_SECRET }}"
+      #   run: |
+      #     curl -X POST https://api.github.com/repos/$GITHUB_REPOSITORY/dispatches \
+      #       -H "Accept: application/vnd.github.everest-preview+json" \
+      #       -H "Authorization: token $REPOSITORY_DISPATCH_SECRET" \
+      #       --data '{"event_type": "packages"}'
