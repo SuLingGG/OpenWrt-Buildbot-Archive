@@ -385,9 +385,12 @@ jobs:
           for PROFILE in `echo $PROFILE_NAMES`;
             do
             make image PROFILE=$PROFILE FILES="files" $TARGET_CONFIG || \
-            echo "::warning file=Firmware Generate Failed::$(echo "Firmware $DEVICE_TARGET/$DEVICE_SUBTARGET/$PROFILE_NAMES Generate Failed")" && \
+            echo -n "$PROFILE_NAMES " >> failed-profile.txt && \
             true;
           done
+          [ -e failed-profile.txt ] && \
+            echo -n "Generate Failed" >> failed-profile.txt && \
+            echo "::warning file=Firmware Generate Failed::$(cat failed-profile.txt)" 
           mv -f bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/* $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/
 
       - name: Collect Failed Logs
