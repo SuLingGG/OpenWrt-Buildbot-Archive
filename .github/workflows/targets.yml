@@ -224,7 +224,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.TOOLCHAIN_TAG }}
-          assets: 'toolchain-${{ env.TARGET_INFO }}.*'
+          assets: "toolchain-${{ env.TARGET_INFO }}.*"
           fail-if-no-assets: false
           fail-if-no-release: false
 
@@ -321,12 +321,20 @@ jobs:
           cd $OPENWRT_ROOT_PATH
           make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1 || make package/compile -j1 V=s
           make package/install -j$(nproc) BUILD_LOG=1 || make package/install -j1 V=s
-          
+
       - name: Generate Firmware Tools
         run: |
           cd $OPENWRT_ROOT_PATH
-          make target/install -j$(nproc) CONFIG_TARGET_ROOTFS_EXT4FS=n BUILD_LOG=1 || make target/install -j1 V=s CONFIG_TARGET_ROOTFS_EXT4FS=n 
-          
+          make target/install -j$(nproc) \
+            CONFIG_TARGET_ROOTFS_EXT4FS=n \
+            CONFIG_TARGET_ROOTFS_INITRAMFS=n \
+            CONFIG_TARGET_ROOTFS_SQUASHFS=n \
+            BUILD_LOG=1 || \
+          make target/install -j1 V=s \
+            CONFIG_TARGET_ROOTFS_EXT4FS=n \
+            CONFIG_TARGET_ROOTFS_INITRAMFS=n \
+            CONFIG_TARGET_ROOTFS_SQUASHFS=n \
+
       - name: Add Kmods Feed
         run: |
           cd $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET
@@ -368,16 +376,10 @@ jobs:
 
       - name: Generate Firmware
         run: |
-          # cd $OPENWRT_ROOT_PATH
-          # rm .config
-          # make defconfig > /dev/null 2>&1
-          # if cat .config | grep -Eq ^CONFIG_TARGET_ROOTFS_EXT4FS; then
-          #   echo "CONFIG_TARGET_ROOTFS_EXT4FS=y" >> $GITHUB_WORKSPACE/config/imagebuilder.config
-          # fi
+          touch $GITHUB_WORKSPACE/config/imagebuilder.config
           if echo $DEVICE_TARGET | grep -q x86; then
             cat $GITHUB_WORKSPACE/config/imagebuilder-x86.config >> $GITHUB_WORKSPACE/config/imagebuilder.config
           fi
-          cd $GITHUB_WORKSPACE
           tar -xf $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/*imagebuilder*.tar.xz -C .
           cd $(ls | grep imagebuilder)
           export PROFILE_NAMES=$(make val.PROFILE_NAMES | sed 's/DEVICE_//g')
