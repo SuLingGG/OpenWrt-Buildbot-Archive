@@ -325,7 +325,7 @@ jobs:
       - name: Generate Firmware Tools
         run: |
           cd $OPENWRT_ROOT_PATH
-          make target/install -j$(nproc) BUILD_LOG=1 || make target/install -j1 V=s
+          make target/install -j$(nproc) CONFIG_TARGET_ROOTFS_EXT4FS=n BUILD_LOG=1 || make target/install -j1 V=s CONFIG_TARGET_ROOTFS_EXT4FS=n 
           
       - name: Add Kmods Feed
         run: |
@@ -368,12 +368,12 @@ jobs:
 
       - name: Generate Firmware
         run: |
-          cd $OPENWRT_ROOT_PATH
-          rm .config
-          make defconfig > /dev/null 2>&1
-          if cat .config | grep -Eq ^CONFIG_TARGET_ROOTFS_EXT4FS; then
-            echo "CONFIG_TARGET_ROOTFS_EXT4FS=y" >> $GITHUB_WORKSPACE/config/imagebuilder.config
-          fi
+          # cd $OPENWRT_ROOT_PATH
+          # rm .config
+          # make defconfig > /dev/null 2>&1
+          # if cat .config | grep -Eq ^CONFIG_TARGET_ROOTFS_EXT4FS; then
+          #   echo "CONFIG_TARGET_ROOTFS_EXT4FS=y" >> $GITHUB_WORKSPACE/config/imagebuilder.config
+          # fi
           if echo $DEVICE_TARGET | grep -q x86; then
             cat $GITHUB_WORKSPACE/config/imagebuilder-x86.config >> $GITHUB_WORKSPACE/config/imagebuilder.config
           fi
