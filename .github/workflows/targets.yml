@@ -292,9 +292,6 @@ jobs:
           echo CONFIG_TARGET_${DEVICE_TARGET}=y > .config
           echo CONFIG_TARGET_${DEVICE_TARGET}_${DEVICE_SUBTARGET}=y >> .config
           cat $GITHUB_WORKSPACE/config/targets.config >> .config
-          if echo $DEVICE_TARGET | grep -q x86; then
-            cat $GITHUB_WORKSPACE/config/x86-extra.config >> .config
-          fi
           echo -e "\n---- Original Config Start ----\n"
           cat .config
           echo -e "\n---- Original Config End ----\n"
@@ -328,10 +325,8 @@ jobs:
       - name: Generate Firmware Tools
         run: |
           cd $OPENWRT_ROOT_PATH
-          make target/imagebuilder/compile
-          make target/sdk/compile
-          make target/toolchain/compile
-
+          make target/install -j$(nproc) BUILD_LOG=1 || make target/install -j1 V=s
+          
       - name: Add Kmods Feed
         run: |
           cd $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET
@@ -373,13 +368,18 @@ jobs:
 
       - name: Generate Firmware
         run: |
+          if echo $DEVICE_TARGET | grep -q x86; then
+            cat $GITHUB_WORKSPACE/config/imagebuilder-x86.config >> $GITHUB_WORKSPACE/config/imagebuilder.config
+          fi
           tar -xf $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/*imagebuilder*.tar.xz -C .
           cd $(ls | grep imagebuilder)
-          export PROFILE_NAME=$(make val.PROFILE_NAMES | sed 's/DEVICE_//g')
-          export TARGET_CONFIG=$(cat $GITHUB_WORKSPACE/config/targets.config | grep CONFIG_TARGET | awk 'gsub(/\r/," "){printf $0;next}')
-          for PROFILE in `echo $PROFILE_NAME`;
+          export PROFILE_NAMES=$(make val.PROFILE_NAMES | sed 's/DEVICE_//g')
+          export TARGET_CONFIG=$(cat $GITHUB_WORKSPACE/config/imagebuilder.config)
+          for PROFILE in `echo $PROFILE_NAMES`;
             do
-            make image PROFILE=$PROFILE FILES="files" $TARGET_CONFIG || true;
+            make image PROFILE=$PROFILE FILES="files" $TARGET_CONFIG || \
+            echo "::warning file=Firmware Generate Failed::$(echo "Firmware $DEVICE_TARGET/$DEVICE_SUBTARGET/$PROFILE_NAMES Generate Failed")" && \
+            true;
           done
           mv -f bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/* $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/
 
