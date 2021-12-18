@@ -368,9 +368,16 @@ jobs:
 
       - name: Generate Firmware
         run: |
+          cd $OPENWRT_ROOT_PATH
+          rm .config
+          make defconfig > /dev/null 2>&1
+          if cat .config | grep -Eq ^CONFIG_TARGET_ROOTFS_EXT4FS; then
+            echo "CONFIG_TARGET_ROOTFS_EXT4FS=y" >> $GITHUB_WORKSPACE/config/imagebuilder.config
+          fi
           if echo $DEVICE_TARGET | grep -q x86; then
             cat $GITHUB_WORKSPACE/config/imagebuilder-x86.config >> $GITHUB_WORKSPACE/config/imagebuilder.config
           fi
+          cd $GITHUB_WORKSPACE
           tar -xf $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/*imagebuilder*.tar.xz -C .
           cd $(ls | grep imagebuilder)
           export PROFILE_NAMES=$(make val.PROFILE_NAMES | sed 's/DEVICE_//g')
