@@ -323,7 +323,8 @@ jobs:
         run: |
           cd $OPENWRT_ROOT_PATH
           make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1 || make package/compile -j1 V=s
-
+          make package/install -j$(nproc) BUILD_LOG=1 || make package/install -j1 V=s
+          
       - name: Generate Firmware Tools
         run: |
           cd $OPENWRT_ROOT_PATH
