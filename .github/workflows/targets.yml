@@ -376,11 +376,13 @@ jobs:
 
       - name: Generate Firmware
         run: |
+          touch $GITHUB_WORKSPACE/config/imagebuilder.config
           if echo $DEVICE_TARGET | grep -q x86; then
             cat $GITHUB_WORKSPACE/config/imagebuilder-x86.config >> $GITHUB_WORKSPACE/config/imagebuilder.config
           fi
           tar -xf $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/*imagebuilder*.tar.xz -C .
           cd $(ls | grep imagebuilder)
+          sed -i '/luci-app-cpufreq/d' include/target.mk
           export PROFILE_NAMES=$(make val.PROFILE_NAMES | sed 's/DEVICE_//g')
           export TARGET_CONFIG=$(cat $GITHUB_WORKSPACE/config/imagebuilder.config)
           for PROFILE in `echo $PROFILE_NAMES`;
