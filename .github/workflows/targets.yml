@@ -376,7 +376,6 @@ jobs:
 
       - name: Generate Firmware
         run: |
-          touch $GITHUB_WORKSPACE/config/imagebuilder.config
           if echo $DEVICE_TARGET | grep -q x86; then
             cat $GITHUB_WORKSPACE/config/imagebuilder-x86.config >> $GITHUB_WORKSPACE/config/imagebuilder.config
           fi
@@ -443,7 +442,6 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST bash -c "'mkdir -p $DEST_TARGETS $DEST_FAILLOGS'"
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_TARGETS $HOST:$DEST_TARGETS
-          rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_FAILLOGS $HOST:$DEST_FAILLOGS
 
       - name: Deploy Kmods To Backblaze
         env:
