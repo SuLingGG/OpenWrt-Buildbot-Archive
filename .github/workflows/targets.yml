@@ -398,6 +398,7 @@ jobs:
 
       - name: Collect Failed Logs
         if: always()
+        continue-on-error: true
         run: |
           cd $OPENWRT_ROOT_PATH
           echo 'Build Failed Packages:'
@@ -409,6 +410,7 @@ jobs:
 
       - name: Upload Failed Logs To Artifact
         if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@main
         with:
           name: Logs-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
@@ -416,6 +418,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Deploy Failed Logs To Server
+        continue-on-error: true
         env:
           HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
           SOURCE_FAILLOGS: "${{ env.OPENWRT_ROOT_PATH }}/faillogs/"
@@ -431,6 +434,7 @@ jobs:
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_FAILLOGS $HOST:$DEST_FAILLOGS
 
       - name: Deploy Files To Server
+        continue-on-error: true
         env:
           HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
           SOURCE_TARGETS: "${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
@@ -445,12 +449,13 @@ jobs:
           ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST bash -c "'mkdir -p $DEST_TARGETS $DEST_FAILLOGS'"
           rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_TARGETS $HOST:$DEST_TARGETS
 
-      - name: Deploy Kmods To Backblaze
+      - name: Deploy Files To Backblaze
+        continue-on-error: true
         env:
           B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
           B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
-          SOURCE_TARGETS: "${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/kmods/${{ env.KERNEL_VERSION }}/"
-          DEST_TARGETS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/kmods/${{ env.KERNEL_VERSION }}/"
+          SOURCE_TARGETS: "${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
+          DEST_TARGETS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
         if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
         run: |
           sudo wget -q -O /bin/b2 https://github.com/Backblaze/B2_Command_Line_Tool/releases/latest/download/b2-linux
