@@ -168,7 +168,10 @@ jobs:
           cd $OPENWRT_ROOT_PATH
           echo CONFIG_TARGET_${DEVICE_TARGET}=y > .config
           echo CONFIG_TARGET_${DEVICE_TARGET}_${DEVICE_SUBTARGET}=y >> .config
-          cat $GITHUB_WORKSPACE/config/packages.config >> $OPENWRT_ROOT_PATH/.config
+          cat $GITHUB_WORKSPACE/config/packages.config >> .config
+          if echo $DEVICE_TARGET | grep -q x86; then
+            cat $GITHUB_WORKSPACE/config/x86.config >> .config
+          fi
 
       - name: Install Feeds
         if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
@@ -329,11 +332,13 @@ jobs:
             CONFIG_TARGET_ROOTFS_EXT4FS=n \
             CONFIG_TARGET_ROOTFS_INITRAMFS=n \
             CONFIG_TARGET_ROOTFS_SQUASHFS=n \
+            CONFIG_TARGET_ROOTFS_UBIFS=n \
             BUILD_LOG=1 || \
           make target/install -j1 V=s \
             CONFIG_TARGET_ROOTFS_EXT4FS=n \
             CONFIG_TARGET_ROOTFS_INITRAMFS=n \
             CONFIG_TARGET_ROOTFS_SQUASHFS=n \
+            CONFIG_TARGET_ROOTFS_UBIFS=n
 
       - name: Add Kmods Feed
         run: |
@@ -378,7 +383,7 @@ jobs:
         run: |
           touch $GITHUB_WORKSPACE/config/imagebuilder.config
           if echo $DEVICE_TARGET | grep -q x86; then
-            cat $GITHUB_WORKSPACE/config/imagebuilder-x86.config >> $GITHUB_WORKSPACE/config/imagebuilder.config
+            cat $GITHUB_WORKSPACE/config/x86.config || awk 'gsub(/\r/," "){printf $0;next}' >> $GITHUB_WORKSPACE/config/imagebuilder.config
           fi
           tar -xf $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/*imagebuilder*.tar.xz -C .
           cd $(ls | grep imagebuilder)
@@ -388,12 +393,8 @@ jobs:
           for PROFILE in `echo $PROFILE_NAMES`;
             do
             make image PROFILE=$PROFILE FILES="files" $TARGET_CONFIG || \
-            echo -n "$PROFILE_NAMES " >> failed-profile.txt && \
             true;
           done
-          [ -e failed-profile.txt ] && \
-            echo -n "Generate Failed" >> failed-profile.txt && \
-            echo "::warning file=Firmware Generate Failed::$(cat failed-profile.txt)" 
           mv -f bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/* $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/
 
       - name: Collect Failed Logs
