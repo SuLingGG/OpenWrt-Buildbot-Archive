@@ -23,6 +23,7 @@ env:
   SOURCE_BRANCH: openwrt-18.06-k5.4
   CURRENT_BRANCH: main
   WEB_ROOT_PATH: /data/dnmp/www/openwrt.cc
+  SDK_TAG: sdk
   TOOLCHAIN_TAG: toolchain
   TZ: Asia/Shanghai
 
@@ -42,7 +43,7 @@ jobs:
         id: find-targets
         run: |
           if [ "${{ github.event.inputs.INPUT_TARGET }}" == "all" ]; then
-            export TARGETS="$(perl ./scripts/dump-target-info.pl architectures 2>/dev/null | awk '{ print $1,$2 }' | sed 's/ /\//g')"
+            export TARGETS="$(cat $GITHUB_WORKSPACE/data/platform.config)"
           else
             export TARGETS="${{ github.event.inputs.INPUT_TARGET }}"
           fi
@@ -105,8 +106,9 @@ jobs:
 
       - name: Prepare SDK
         run: |
-          export SDK_NAME=$(curl -fsSL https://openwrt.cc/buildbot/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET | grep -oP "immortalwrt-sdk.*?.xz" | head -1)
-          curl -sL https://openwrt.cc/buildbot/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/$SDK_NAME | tar -xJ
+          export SDK_URL=$(curl -fsSL https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$SDK_TAG \
+            | grep browser_download_url | grep ${DEVICE_TARGET}-${DEVICE_SUBTARGET} | awk -F '"' '{print $(NF-1)}')
+          curl -sL $SDK_URL | tar -xJ
           cd immortalwrt-sdk-$DEVICE_TARGET-$DEVICE_SUBTARGET*
           echo "OPENWRT_SDK_PATH=$PWD" >> $GITHUB_ENV
 
@@ -180,44 +182,56 @@ jobs:
           rsync -aq --files-from=failed-packages.txt logs/ faillogs/
           cp -f logs/package/error.txt faillogs
 
-      - name: Upload Failed Logs To Artifact
-        if: always()
-        uses: actions/upload-artifact@main
-        with:
-          name: Logs-${{ env.DEVICE_PLATFORM }}
-          path: ${{ env.OPENWRT_SDK_PATH }}/faillogs
-          if-no-files-found: ignore
-
-      - name: Deploy Failed Logs To Server
+      - name: Deploy Files To Backblaze
+        continue-on-error: true
         env:
-          HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
-          SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
-          DEST_FAILLOGS: "${{ env.WEB_ROOT_PATH }}/buildbot/faillogs/packages/${{ env.DEVICE_PLATFORM }}/"
-          SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
-        if: env.SERVER_PRIVATEKEY != null && always()
-        run: |
-          mkdir -p ~/.ssh/
-          install -m 600 /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.SERVER_PRIVATEKEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST bash -c "'mkdir -p $DEST_FAILLOGS'"
-          rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_FAILLOGS $HOST:$DEST_FAILLOGS
-
-      - name: Deploy Files To Server
-        env:
-          HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
+          B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
+          B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
           SOURCE_PACKAGES: "${{ env.OPENWRT_SDK_PATH }}/bin/packages/${{ env.DEVICE_PLATFORM }}/"
-          DEST_PACKAGES: "${{ env.WEB_ROOT_PATH }}/buildbot/packages/${{ env.DEVICE_PLATFORM }}/"
-          SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
-        if: env.SERVER_PRIVATEKEY != null
+          DEST_PACKAGES: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/packages/${{ env.DEVICE_PLATFORM }}/"
+        if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
         run: |
-          mkdir -p ~/.ssh/
-          install -m 600 /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.SERVER_PRIVATEKEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST \
-          bash -c "'mkdir -p $DEST_PACKAGES'"
-          rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_PACKAGES $HOST:$DEST_PACKAGES
+          b2 authorize-account $B2_APPLICATION_KEY_ID $B2_APPLICATION_KEY
+          b2 sync --noProgress --replaceNewer $SOURCE_PACKAGES $DEST_PACKAGES
+
+      # - name: Upload Failed Logs To Artifact
+      #   if: always()
+      #   uses: actions/upload-artifact@main
+      #   with:
+      #     name: Logs-${{ env.DEVICE_PLATFORM }}
+      #     path: ${{ env.OPENWRT_SDK_PATH }}/faillogs
+      #     if-no-files-found: ignore
+
+      # - name: Deploy Failed Logs To Server
+      #   env:
+      #     HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
+      #     SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
+      #     DEST_FAILLOGS: "${{ env.WEB_ROOT_PATH }}/buildbot/faillogs/packages/${{ env.DEVICE_PLATFORM }}/"
+      #     SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
+      #   if: env.SERVER_PRIVATEKEY != null && always()
+      #   run: |
+      #     mkdir -p ~/.ssh/
+      #     install -m 600 /dev/null ~/.ssh/id_rsa
+      #     echo "${{ secrets.SERVER_PRIVATEKEY }}" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST bash -c "'mkdir -p $DEST_FAILLOGS'"
+      #     rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_FAILLOGS $HOST:$DEST_FAILLOGS
+
+      # - name: Deploy Files To Server
+      #   env:
+      #     HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
+      #     SOURCE_PACKAGES: "${{ env.OPENWRT_SDK_PATH }}/bin/packages/${{ env.DEVICE_PLATFORM }}/"
+      #     DEST_PACKAGES: "${{ env.WEB_ROOT_PATH }}/buildbot/packages/${{ env.DEVICE_PLATFORM }}/"
+      #     SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
+      #   if: env.SERVER_PRIVATEKEY != null
+      #   run: |
+      #     mkdir -p ~/.ssh/
+      #     install -m 600 /dev/null ~/.ssh/id_rsa
+      #     echo "${{ secrets.SERVER_PRIVATEKEY }}" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST \
+      #     bash -c "'mkdir -p $DEST_PACKAGES'"
+      #     rsync -chavP --delete -e 'ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no' $SOURCE_PACKAGES $HOST:$DEST_PACKAGES
 
       - name: Clean Process
         if: always()
@@ -226,12 +240,17 @@ jobs:
           sudo rsync --delete-before --force -r empty/ $OPENWRT_SDK_PATH/
           rm -rf empty $OPENWRT_SDK_PATH
 
-      # - name: Trigger A New Workflow
-      #   if: always()
-      #   env:
-      #     REPOSITORY_DISPATCH_SECRET: "${{ secrets.REPOSITORY_DISPATCH_SECRET }}"
-      #   run: |
-      #     curl -X POST https://api.github.com/repos/$GITHUB_REPOSITORY/dispatches \
-      #       -H "Accept: application/vnd.github.everest-preview+json" \
-      #       -H "Authorization: token $REPOSITORY_DISPATCH_SECRET" \
-      #       --data '{"event_type": "packages"}'
+  Trigger-Workflow:
+    needs: [Config, Packages]
+    name: Trigger Workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger A New Workflow
+        if: always()
+        env:
+          REPOSITORY_DISPATCH_SECRET: "${{ secrets.REPOSITORY_DISPATCH_SECRET }}"
+        run: |
+          curl -X POST https://api.github.com/repos/$GITHUB_REPOSITORY/dispatches \
+            -H "Accept: application/vnd.github.everest-preview+json" \
+            -H "Authorization: token $REPOSITORY_DISPATCH_SECRET" \
+            --data '{"event_type": "packages"}'
