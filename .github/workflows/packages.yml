@@ -43,7 +43,7 @@ jobs:
         id: find-targets
         run: |
           if [ "${{ github.event.inputs.INPUT_TARGET }}" == "all" ]; then
-            export TARGETS="$(cat $GITHUB_WORKSPACE/data/platform.config)"
+            export TARGETS="$(cat $GITHUB_WORKSPACE/data/support/platform.config)"
           else
             export TARGETS="${{ github.event.inputs.INPUT_TARGET }}"
           fi

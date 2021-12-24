@@ -44,7 +44,7 @@ jobs:
         run: |
           cd openwrt
           if [ "${{ github.event.inputs.INPUT_TARGET }}" == "all" ]; then
-            export TARGETS="$(cat $GITHUB_WORKSPACE/data/targets.config)"
+            export TARGETS="$(cat $GITHUB_WORKSPACE/data/support/targets.config)"
           else
             export TARGETS="${{ github.event.inputs.INPUT_TARGET }}"
           fi
