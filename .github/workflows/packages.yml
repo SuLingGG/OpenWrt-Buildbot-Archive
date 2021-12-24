@@ -35,6 +35,9 @@ jobs:
       TARGETS: ${{ steps.find-targets.outputs.TARGETS }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
       - name: Clone Source Code
         run: |
           git clone --depth=1 $SOURCE_URL -b $SOURCE_BRANCH openwrt
