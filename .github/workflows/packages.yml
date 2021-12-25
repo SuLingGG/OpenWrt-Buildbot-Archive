@@ -72,6 +72,12 @@ jobs:
       matrix: ${{fromJson(needs.Config.outputs.TARGETS)}}
 
     steps:
+      - name: Clean Environment
+        run: |
+          sudo umount /dev/loop*p1 || true
+          sudo losetup -D || true
+          sudo umount overlay || true
+
       - name: Checkout
         uses: actions/checkout@main
 
@@ -88,14 +94,24 @@ jobs:
           echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
           export DEVICE_SUBTARGET=$(echo ${{ matrix.TARGETS }} | awk -F '/' '{print $3}')
           echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+          export TARGET_INFO="$SOURCE_OWNER-$SOURCE_REPO-$SOURCE_BRANCH-$DEVICE_TARGET-$DEVICE_SUBTARGET"
+          echo "TARGET_INFO=$TARGET_INFO" >> $GITHUB_ENV
 
-      - name: Prepare SDK
+      - name: Prepare Toolchain Image
         run: |
-          export SDK_URL=$(curl -fsSL https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$SDK_TAG \
-            | grep browser_download_url | grep ${DEVICE_TARGET}-${DEVICE_SUBTARGET} | awk -F '"' '{print $(NF-1)}')
-          curl -sL $SDK_URL | tar -xJ
-          cd immortalwrt-sdk-$DEVICE_TARGET-$DEVICE_SUBTARGET*
-          echo "OPENWRT_SDK_PATH=$PWD" >> $GITHUB_ENV
+          mkdir -p workspace
+          cd workspace
+          for i in {0..9}
+          do
+            curl -fsL https://github.com/$GITHUB_REPOSITORY/releases/download/$TOOLCHAIN_TAG/toolchain-${TARGET_INFO}.img.0$i >> toolchain-${TARGET_INFO}.img || break
+          done
+          mkdir -p openwrt-ro openwrt workdir overlay
+          sudo mount -o loop toolchain-${TARGET_INFO}.img openwrt-ro
+          sudo mount -t overlay overlay -o lowerdir=openwrt-ro,upperdir=overlay,workdir=workdir openwrt
+          sudo chown runner:runner openwrt
+          cd openwrt
+          echo "OPENWRT_ROOT_PATH=$PWD" >> $GITHUB_ENV
+          git pull
 
       - name: Import Build Keys
         env:
@@ -103,20 +119,20 @@ jobs:
           BUILD_PUBLICKEY: ${{ secrets.BUILD_PUBLICKEY }}
         if: env.BUILD_PRIVATEKEY != null && env.BUILD_PUBLICKEY != null
         run: |
-          cd $OPENWRT_SDK_PATH
+          cd $OPENWRT_ROOT_PATH
           echo -e "$BUILD_PRIVATEKEY" > key-build
           echo -e "$BUILD_PUBLICKEY" > key-build.pub
           wc -c key-build key-build.pub
 
       - name: Install Feeds
         run: |
-          cd $OPENWRT_SDK_PATH
+          cd $OPENWRT_ROOT_PATH
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Generate Config File
         run: |
-          cd $OPENWRT_SDK_PATH
+          cd $OPENWRT_ROOT_PATH
           echo CONFIG_TARGET_${DEVICE_TARGET}=y > .config
           echo CONFIG_TARGET_${DEVICE_TARGET}_${DEVICE_SUBTARGET}=y >> .config
           cat $GITHUB_WORKSPACE/config/packages.config >> .config
@@ -130,24 +146,30 @@ jobs:
 
       - name: Download Source Packages
         run: |
-          cd $OPENWRT_SDK_PATH
+          cd $OPENWRT_ROOT_PATH
           cp -rf /data/cache/dl .
           make download -j64
 
+      - name: Compile Kmods
+        run: |
+          cd $OPENWRT_ROOT_PATH
+          make target/compile -j$(nproc) IGNORE_ERRORS="m n" BUILD_LOG=1 || \
+            yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
+
       - name: Compile Packages
         run: |
-          cd $OPENWRT_SDK_PATH
-          make -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1
+          cd $OPENWRT_ROOT_PATH
+          make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1
 
       - name: Generate Packages Index
         run: |
-          cd $OPENWRT_SDK_PATH
+          cd $OPENWRT_ROOT_PATH
           make package/index V=s PACKAGE_SUBDIRS=bin/packages/$DEVICE_PLATFORM/
 
       - name: Collect Failed Logs
         if: always()
         run: |
-          cd $OPENWRT_SDK_PATH
+          cd $OPENWRT_ROOT_PATH
           echo 'Build Failed Packages:'
           cat logs/package/error.txt | awk '{print $2}'
           cat logs/package/error.txt | awk '{print $2}' | sed 's/$/&\//g' | tee failed-packages.txt
@@ -160,7 +182,7 @@ jobs:
         env:
           B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
           B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
-          SOURCE_PACKAGES: "${{ env.OPENWRT_SDK_PATH }}/bin/packages/${{ env.DEVICE_PLATFORM }}/"
+          SOURCE_PACKAGES: "${{ env.OPENWRT_ROOT_PATH }}/bin/packages/${{ env.DEVICE_PLATFORM }}/"
           DEST_PACKAGES: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/packages/${{ env.DEVICE_PLATFORM }}/"
         if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
         run: |
@@ -172,7 +194,7 @@ jobs:
         env:
           B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
           B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
-          SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
+          SOURCE_FAILLOGS: "${{ env.OPENWRT_ROOT_PATH }}/faillogs/"
           DEST_FAILLOGS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/faillogs/packages/"
         if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
         run: |
@@ -184,13 +206,13 @@ jobs:
       #   uses: actions/upload-artifact@main
       #   with:
       #     name: Logs-${{ env.DEVICE_PLATFORM }}
-      #     path: ${{ env.OPENWRT_SDK_PATH }}/faillogs
+      #     path: ${{ env.OPENWRT_ROOT_PATH }}/faillogs
       #     if-no-files-found: ignore
 
       # - name: Deploy Failed Logs To Server
       #   env:
       #     HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
-      #     SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
+      #     SOURCE_FAILLOGS: "${{ env.OPENWRT_ROOT_PATH }}/faillogs/"
       #     DEST_FAILLOGS: "${{ env.WEB_ROOT_PATH }}/buildbot/faillogs/packages/${{ env.DEVICE_PLATFORM }}/"
       #     SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
       #   if: env.SERVER_PRIVATEKEY != null && always()
@@ -205,7 +227,7 @@ jobs:
       # - name: Deploy Files To Server
       #   env:
       #     HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
-      #     SOURCE_PACKAGES: "${{ env.OPENWRT_SDK_PATH }}/bin/packages/${{ env.DEVICE_PLATFORM }}/"
+      #     SOURCE_PACKAGES: "${{ env.OPENWRT_ROOT_PATH }}/bin/packages/${{ env.DEVICE_PLATFORM }}/"
       #     DEST_PACKAGES: "${{ env.WEB_ROOT_PATH }}/buildbot/packages/${{ env.DEVICE_PLATFORM }}/"
       #     SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
       #   if: env.SERVER_PRIVATEKEY != null
@@ -221,9 +243,12 @@ jobs:
       - name: Clean Process
         if: always()
         run: |
+          sync
+          sudo umount $OPENWRT_ROOT_PATH || true
+          sudo umount workspace/openwrt-ro || true
           mkdir -p empty
-          sudo rsync --delete-before --force -r empty/ $OPENWRT_SDK_PATH/
-          rm -rf empty $OPENWRT_SDK_PATH
+          sudo rsync --delete-before --force -r empty/ workspace/
+          rm -rf empty workspace
 
   Trigger-Workflow:
     needs: [Config, Packages]

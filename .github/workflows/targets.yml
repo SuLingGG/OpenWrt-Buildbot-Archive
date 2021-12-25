@@ -420,25 +420,25 @@ jobs:
           path: ${{ env.OPENWRT_ROOT_PATH }}/faillogs/
           if-no-files-found: ignore
 
-      - name: Delete Old SDK Assets
-        uses: mknejp/delete-release-assets@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ env.SDK_TAG }}
-          assets: "immortalwrt-sdk-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}*"
-          fail-if-no-assets: false
-          fail-if-no-release: false
+      # - name: Delete Old SDK Assets
+      #   uses: mknejp/delete-release-assets@v1
+      #   with:
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     tag: ${{ env.SDK_TAG }}
+      #     assets: "immortalwrt-sdk-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}*"
+      #     fail-if-no-assets: false
+      #     fail-if-no-release: false
 
-      - name: Upload SDK To Release
-        uses: ncipollo/release-action@v1.8.0
-        with:
-          name: sdk
-          allowUpdates: true
-          replacesArtifacts: true
-          tag: ${{ env.SDK_TAG }}
-          commit: ${{ env.CURRENT_BRANCH }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: ${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/immortalwrt-sdk*
+      # - name: Upload SDK To Release
+      #   uses: ncipollo/release-action@v1.8.0
+      #   with:
+      #     name: sdk
+      #     allowUpdates: true
+      #     replacesArtifacts: true
+      #     tag: ${{ env.SDK_TAG }}
+      #     commit: ${{ env.CURRENT_BRANCH }}
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     artifacts: ${{ env.OPENWRT_ROOT_PATH }}/bin/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/immortalwrt-sdk*
 
       - name: Deploy Files To Backblaze
         continue-on-error: true
