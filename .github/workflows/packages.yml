@@ -38,10 +38,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@main
 
-      - name: Clone Source Code
-        run: |
-          git clone --depth=1 $SOURCE_URL -b $SOURCE_BRANCH openwrt
-
       - name: Find Targets
         id: find-targets
         run: |
@@ -50,7 +46,6 @@ jobs:
           else
             export TARGETS="${{ github.event.inputs.INPUT_TARGET }}"
           fi
-          cd openwrt
           JSON='{"config": ["default"], "targets":['
           FIRST=1
           for TARGET in $TARGETS; do
