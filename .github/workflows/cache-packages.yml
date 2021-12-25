@@ -6,7 +6,7 @@
 # Blog: https://p3terx.com
 #=================================================
 
-name: Cache OpenWrt Packages
+name: Cache Packages
 
 on:
   repository_dispatch:
@@ -47,5 +47,5 @@ jobs:
           find dl -size -1024c -exec rm -f {} \;
           mkdir -p /data/cache
           rm -rf /data/cache/dl
-          cp -r dl /data/cache
+          mv dl /data/cache
 
