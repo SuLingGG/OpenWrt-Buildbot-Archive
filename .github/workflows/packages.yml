@@ -244,6 +244,7 @@ jobs:
         if: always()
         run: |
           sync
+          sleep 30
           sudo umount $OPENWRT_ROOT_PATH || true
           sudo umount workspace/openwrt-ro || true
           mkdir -p empty
