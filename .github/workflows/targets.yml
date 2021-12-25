@@ -454,6 +454,18 @@ jobs:
           b2 authorize-account $B2_APPLICATION_KEY_ID $B2_APPLICATION_KEY
           b2 sync --noProgress --replaceNewer $SOURCE_TARGETS $DEST_TARGETS
 
+      - name: Deploy FailLogs To Backblaze
+        continue-on-error: true
+        env:
+          B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
+          B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
+          SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
+          DEST_FAILLOGS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/faillogs/targets/"
+        if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
+        run: |
+          b2 authorize-account $B2_APPLICATION_KEY_ID $B2_APPLICATION_KEY
+          b2 sync --noProgress --replaceNewer $SOURCE_FAILLOGS $DEST_FAILLOGS
+
       # - name: Deploy Failed Logs To Server
       #   continue-on-error: true
       #   env:
