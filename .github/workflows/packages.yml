@@ -115,7 +115,6 @@ jobs:
           ./scripts/feeds install -a
 
       - name: Generate Config File
-        if: steps.hash.outputs.REBUILD_TOOLCHAIN == 'true'
         run: |
           cd $OPENWRT_SDK_PATH
           echo CONFIG_TARGET_${DEVICE_TARGET}=y > .config
