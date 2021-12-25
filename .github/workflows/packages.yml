@@ -164,7 +164,7 @@ jobs:
       - name: Generate Packages Index
         run: |
           cd $OPENWRT_ROOT_PATH
-          make package/index V=s PACKAGE_SUBDIRS=bin/packages/$DEVICE_PLATFORM/
+          make package/index V=s
 
       - name: Collect Failed Logs
         if: always()
@@ -195,7 +195,7 @@ jobs:
           B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
           B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
           SOURCE_FAILLOGS: "${{ env.OPENWRT_ROOT_PATH }}/faillogs/"
-          DEST_FAILLOGS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/faillogs/packages/"
+          DEST_FAILLOGS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/faillogs/packages/${{ env.DEVICE_PLATFORM }}/"
         if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
         run: |
           b2 authorize-account $B2_APPLICATION_KEY_ID $B2_APPLICATION_KEY
