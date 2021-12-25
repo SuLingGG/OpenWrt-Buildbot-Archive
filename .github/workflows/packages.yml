@@ -134,11 +134,6 @@ jobs:
           cp -rf /data/cache/dl .
           make download -j64
 
-      - name: Generate Target Information
-        run: |
-          cd $OPENWRT_SDK_PATH
-          make diffconfig buildversion feedsversion
-
       - name: Compile Kmods
         run: |
           cd $OPENWRT_SDK_PATH
