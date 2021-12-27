@@ -1,0 +1,103 @@
+#=================================================
+# https://github.com/P3TERX/Actions-OpenWrt
+# Description: Build OpenWrt using GitHub Actions
+# Lisence: MIT
+# Author: P3TERX
+# Blog: https://p3terx.com
+#=================================================
+
+name: Update DL Mirror
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 18 * * *
+
+env:
+  WEBROOT: /data/www/openwrt.cc
+
+jobs:
+  Download:
+    if: always()
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        REPO: [openwrt/openwrt, coolsnowwolf/lede, immortalwrt/immortalwrt, lienol/openwrt]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Initialization Download Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo rm -rf /etc/apt/sources.list.d/*
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804) rdfind
+          sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+      - name: Download All Packages
+        env:
+          REPO: ${{ matrix.REPO }}
+        run: |
+          df -hT $PWD
+          export REPO_USER="$(echo $REPO | awk -F '/' '{print $1}')"
+          echo "REPO_USER=$REPO_USER" >> $GITHUB_ENV
+          export REPO_NAME="$(echo $REPO | awk -F '/' '{print $2}')"
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
+
+          export OPENWRT_BRANCH="master openwrt-18.06 openwrt-19.07 openwrt-21.02 lede-17.01"
+          export IMMORTALWRT_BRANCH="master openwrt-18.06 openwrt-18.06-dev openwrt-18.06-k5.4 openwrt-21.02"
+          export COOLSNOWWOLF_BRANCH="master"
+          export LIENOL_BRANCH="main 19.07"
+
+          if [ $REPO_USER == openwrt ]
+          then
+            export BRANCH=$OPENWRT_BRANCH
+          elif [ $REPO_USER == immortalwrt ]
+          then
+            export BRANCH=$IMMORTALWRT_BRANCH
+          elif [ $REPO_USER == coolsnowwolf ]
+          then
+            export BRANCH=$COOLSNOWWOLF_BRANCH
+          else
+            export BRANCH=$LIENOL_BRANCH
+          fi
+
+          for REPO_BRANCH in $BRANCH
+          do
+            git clone --depth=1 https://github.com/$REPO_USER/$REPO_NAME -b $REPO_BRANCH $REPO_BRANCH
+            pushd $REPO_BRANCH
+            ./scripts/feeds update -a && ./scripts/feeds install -a
+            echo "CONFIG_ALL=y" >> .config
+            make defconfig
+            make download -j32 IGNORE_ERRORS=1
+            find dl -size -1024c -exec ls -l {} \;
+            find dl -size -1024c -exec rm -f {} \;
+            mkdir -p ../output/$REPO_USER/$REPO_NAME
+            mv dl ../output/$REPO_USER/$REPO_NAME/$REPO_USER-$REPO_NAME-$REPO_BRANCH
+            popd
+          done
+
+          pushd output/$REPO_USER/$REPO_NAME
+          ls | xargs -i rsync -axvu {}/ .
+          rm -rf $REPO_USER-*
+          popd
+          sudo rdfind -makehardlinks true output
+
+      - name: Deploy Files To Server
+        env:
+          HOST: "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}"
+          SOURCE_DL: "output/${{ env.REPO_USER }}/${{ env.REPO_NAME }}/"
+          DEST_DL: "${{ env.WEBROOT }}/dl/${{ env.REPO_USER }}/${{ env.REPO_NAME }}/"
+          SERVER_PRIVATEKEY: "${{ secrets.SERVER_PRIVATEKEY }}"
+        run: |
+          mkdir -p ~/.ssh/
+          install -m 600 /dev/null ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_PRIVATEKEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh -q -t -i ~/.ssh/id_rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $HOST \
+          bash -c "'mkdir -p $DEST_DL'"
+          rsync -chavHP --delete -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" $SOURCE_DL $HOST:$DEST_DL
