@@ -18,8 +18,7 @@ env:
 
 jobs:
   Download:
-    if: always()
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -29,20 +28,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@main
 
-      - name: Initialization Download Environment
+      - name: Initialization Environment
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo rm -rf /etc/apt/sources.list.d/*
+          sudo -E rm -rf /etc/apt/sources.list.d/*
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804) rdfind
-          sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+          sudo -E apt-get -qq install squashfs-tools $(curl -fsSL git.io/depends-ubuntu-2004)
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -y purge azure* dotnet* firefox ghc* google* hhvm llvm* mono* mysql* openjdk* php* zulu* powershell* msodbc*
+          sudo -E apt-get -qq clean
+          sudo -E rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /etc/mysql /etc/php /usr/local/share/boost
+          sudo -E snap set system refresh.retain=2
+          sudo -E docker image prune -a -f
+          sudo -E ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+      - name: Combine Disks
+        run: |
+          sudo swapoff -a
+          sudo rm -f /mnt/swapfile
+          export ROOT_FREE_KB=$(df --block-size=1024 --output=avail / | tail -1)
+          export ROOT_LOOP_KB=$(expr $ROOT_FREE_KB - 1048576)
+          export ROOT_LOOP_BYTES=$(expr $ROOT_LOOP_KB \* 1024)
+          sudo fallocate -l $ROOT_LOOP_BYTES /root.img
+          export ROOT_LOOP_DEVNAME=$(sudo losetup -Pf --show /root.img)
+          sudo pvcreate -f $ROOT_LOOP_DEVNAME
+          export MNT_FREE_KB=$(df --block-size=1024 --output=avail /mnt | tail -1)
+          export MNT_LOOP_KB=$(expr $MNT_FREE_KB - 102400)
+          export MNT_LOOP_BYTES=$(expr $MNT_LOOP_KB \* 1024)
+          sudo fallocate -l $MNT_LOOP_BYTES /mnt/mnt.img
+          export MNT_LOOP_DEVNAME=$(sudo losetup -Pf --show /mnt/mnt.img)
+          sudo pvcreate -f $MNT_LOOP_DEVNAME
+          sudo vgcreate vgstorage $ROOT_LOOP_DEVNAME $MNT_LOOP_DEVNAME
+          sudo lvcreate -n lvstorage -l 100%FREE vgstorage
+          export LV_DEVNAME=$(sudo lvscan | awk -F "'" '{print $2}')
+          sudo mkfs.btrfs -L combinedisk $LV_DEVNAME
+          sudo mount -o compress=zstd $LV_DEVNAME $GITHUB_WORKSPACE
+          sudo chown -R runner:runner $GITHUB_WORKSPACE
+          mkdir -p $GITHUB_WORKSPACE/tmp
+          chmod 777 $GITHUB_WORKSPACE/tmp
+          sudo cp -rp /tmp/* $GITHUB_WORKSPACE/tmp
+          sudo mount -B $GITHUB_WORKSPACE/tmp /tmp
+
+      - name: Print Disk Usage Information
+        run: |
+          sudo btrfs filesystem usage $GITHUB_WORKSPACE
 
       - name: Download All Packages
         env:
           REPO: ${{ matrix.REPO }}
         run: |
-          df -hT $PWD
           export REPO_USER="$(echo $REPO | awk -F '/' '{print $1}')"
           echo "REPO_USER=$REPO_USER" >> $GITHUB_ENV
           export REPO_NAME="$(echo $REPO | awk -F '/' '{print $2}')"
@@ -82,7 +117,7 @@ jobs:
           done
 
           pushd output/$REPO_USER/$REPO_NAME
-          ls | xargs -i rsync -axvu {}/ .
+          ls | xargs -i rsync -aqux --remove-source-files {}/ .
           rm -rf $REPO_USER-*
           popd
           sudo rdfind -makehardlinks true output
