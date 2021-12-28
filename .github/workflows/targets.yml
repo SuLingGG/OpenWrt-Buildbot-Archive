@@ -367,15 +367,12 @@ jobs:
 
       - name: Set Opkg Configuration
         run: |
-          cd $OPENWRT_ROOT_PATH
-          mkdir -p files/etc/opkg/
-          cp $GITHUB_WORKSPACE/data/opkg/distfeeds.conf files/etc/opkg
           sed -i "s/DEVICE_TARGET/$DEVICE_TARGET/g; \
             s/DEVICE_SUBTARGET/$DEVICE_SUBTARGET/g; \
             s/KERNEL_VERSION/$KERNEL_VERSION/g; \
-            s/DEVICE_PLATFORM/$DEVICE_PLATFORM/g" files/etc/opkg/distfeeds.conf
+            s/DEVICE_PLATFORM/$DEVICE_PLATFORM/g" $GITHUB_WORKSPACE/data/opkg/distfeeds.conf
           echo -e "\n---- Distfeeds.conf Start----\n"
-          cat files/etc/opkg/distfeeds.conf
+          cat $GITHUB_WORKSPACE/data/opkg/distfeeds.conf
           echo -e "\n---- Distfeeds.conf End----\n"
 
       - name: Generate Packages Index
@@ -390,6 +387,8 @@ jobs:
           tar -xf $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/*imagebuilder*.tar.xz -C .
           cd $(ls | grep imagebuilder)
           sed -i '/luci-app-cpufreq/d' include/target.mk
+          mkdir -p files/etc/opkg
+          cp $GITHUB_WORKSPACE/data/opkg/distfeeds.conf files/etc/opkg
           export PROFILE_NAMES=$(make val.PROFILE_NAMES | sed 's/DEVICE_//g')
           for PROFILE in `echo $PROFILE_NAMES`;
             do
