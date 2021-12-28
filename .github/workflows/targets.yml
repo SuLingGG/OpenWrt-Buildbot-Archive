@@ -392,9 +392,10 @@ jobs:
           mkdir -p files/etc/opkg
           cp $GITHUB_WORKSPACE/data/opkg/distfeeds.conf files/etc/opkg
           export PROFILE_NAMES=$(make val.PROFILE_NAMES | sed 's/DEVICE_//g')
+          export I18N_PACKAGES=$(cat $GITHUB_WORKSPACE/config/i18n.config)
           for PROFILE in `echo $PROFILE_NAMES`;
             do
-            make image PROFILE=$PROFILE FILES="files" || \
+            make image PROFILE=$PROFILE FILES="files" PACKAGES="$I18N_PACKAGES" || \
             true;
           done
           mv -f bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/* $OPENWRT_ROOT_PATH/bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/
