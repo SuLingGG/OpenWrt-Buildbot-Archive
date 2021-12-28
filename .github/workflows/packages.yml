@@ -17,6 +17,8 @@ on:
         description: "Target to build (platform/target/subtarget)"
         required: false
         default: "all"
+  schedule:
+    - cron: 0 20 * * 0,2,4
 
 env:
   SOURCE_URL: https://github.com/immortalwrt/immortalwrt
@@ -246,18 +248,3 @@ jobs:
           mkdir -p empty
           sudo rsync --delete-before --force -r empty/ workspace/
           rm -rf empty workspace
-
-  Trigger-Workflow:
-    needs: [Config, Packages]
-    name: Trigger Workflow
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger A New Workflow
-        if: always()
-        env:
-          REPOSITORY_DISPATCH_SECRET: "${{ secrets.REPOSITORY_DISPATCH_SECRET }}"
-        run: |
-          curl -X POST https://api.github.com/repos/$GITHUB_REPOSITORY/dispatches \
-            -H "Accept: application/vnd.github.everest-preview+json" \
-            -H "Authorization: token $REPOSITORY_DISPATCH_SECRET" \
-            --data '{"event_type": "packages"}'
