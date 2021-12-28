@@ -439,7 +439,7 @@ jobs:
           B2_APPLICATION_KEY: "${{ secrets.B2_APPLICATION_KEY }}"
           B2_APPLICATION_KEY_ID: "${{ secrets.B2_APPLICATION_KEY_ID }}"
           SOURCE_FAILLOGS: "${{ env.OPENWRT_SDK_PATH }}/faillogs/"
-          DEST_FAILLOGS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/faillogs/targets/"
+          DEST_FAILLOGS: "b2://${{ secrets.B2_BUCKETNAME }}/snapshots/faillogs/targets/${{ env.DEVICE_TARGET }}/${{ env.DEVICE_SUBTARGET }}/"
         if: env.B2_APPLICATION_KEY != null && env.B2_APPLICATION_KEY_ID != null
         run: |
           b2 authorize-account $B2_APPLICATION_KEY_ID $B2_APPLICATION_KEY
