@@ -41,11 +41,13 @@ jobs:
 
       - name: Find Targets
         id: find-targets
+        env:
+          INPUT_TARGET: ${{ github.event.inputs.INPUT_TARGET }}
         run: |
-          if [ "${{ github.event.inputs.INPUT_TARGET }}" == "all" ]; then
+          if [ "$INPUT_TARGET" = "all" ] || [ "$INPUT_TARGET" = "" ]; then
             export TARGETS="$(cat $GITHUB_WORKSPACE/data/support/platform.config)"
           else
-            export TARGETS="${{ github.event.inputs.INPUT_TARGET }}"
+            export TARGETS="$INPUT_TARGET"
           fi
           JSON='{"config": ["default"], "targets":['
           FIRST=1
