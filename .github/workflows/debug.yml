@@ -44,7 +44,7 @@ jobs:
         env:
           INPUT_TARGET: ${{ github.event.inputs.INPUT_TARGET }}
         run: |
-          if [ "$INPUT_TARGET" = "all" || "$INPUT_TARGET" = "" ]; then
+          if "$INPUT_TARGET" = "all" || "$INPUT_TARGET" = "" ; then
             export TARGETS="$(cat $GITHUB_WORKSPACE/data/support/platform.config)"
           else
             export TARGETS="$INPUT_TARGET"
