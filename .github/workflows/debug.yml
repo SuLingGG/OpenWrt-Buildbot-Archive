@@ -1,0 +1,63 @@
+#=================================================
+# https://github.com/P3TERX/Actions-OpenWrt
+# Description: Build OpenWrt using GitHub Actions
+# Lisence: MIT
+# Author: P3TERX
+# Blog: https://p3terx.com
+#=================================================
+
+name: Debug
+
+on:
+  repository_dispatch:
+    types: [debug]
+  workflow_dispatch:
+    inputs:
+      INPUT_TARGET:
+        description: "Target to build (platform/target/subtarget)"
+        required: false
+        default: "all"
+  schedule:
+    - cron: 0 20 * * 0,2,4
+
+env:
+  SOURCE_URL: https://github.com/immortalwrt/immortalwrt
+  SOURCE_BRANCH: openwrt-18.06-k5.4
+  CURRENT_BRANCH: main
+  WEB_ROOT_PATH: /data/www/openwrt.cc
+  TOOLCHAIN_TAG: toolchain
+  TZ: Asia/Shanghai
+
+jobs:
+  Config:
+    name: Generate Config
+    runs-on: ubuntu-latest
+    outputs:
+      TARGETS: ${{ steps.find-targets.outputs.TARGETS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Find Targets
+        id: find-targets
+        env:
+          INPUT_TARGET: ${{ github.event.inputs.INPUT_TARGET }}
+        run: |
+          if [ $INPUT_TARGET == "all" ]; then
+            export TARGETS="$(cat $GITHUB_WORKSPACE/data/support/platform.config)"
+          elif [ $INPUT_TARGET == null ]; then
+            export TARGETS="$(cat $GITHUB_WORKSPACE/data/support/platform.config)"
+          else
+            export TARGETS=$INPUT_TARGET
+          fi
+          JSON='{"config": ["default"], "targets":['
+          FIRST=1
+          for TARGET in $TARGETS; do
+          [[ $FIRST -ne 1 ]] && JSON="$JSON"','
+          JSON="$JSON"'"'"${TARGET}"'"'
+          FIRST=0
+          done
+          JSON="$JSON"']}'
+          echo $JSON
+          echo "::set-output name=TARGETS::$JSON"
