@@ -245,7 +245,7 @@ jobs:
         if: always()
         run: |
           sync
-          ps -ef | grep OpenWrt-Buildbot | awk '{print $2}' | xargs sudo kill -9
+          ps -ef | grep OpenWrt-Buildbot | awk '{print $2}' | xargs sudo kill -9 || true
           sleep 30
           sudo umount $OPENWRT_ROOT_PATH || true
           sudo umount workspace/openwrt-ro || true
