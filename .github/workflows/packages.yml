@@ -75,6 +75,7 @@ jobs:
           sudo umount /dev/loop*p1 || true
           sudo losetup -D || true
           sudo umount overlay || true
+          sudo rm -rf workspace || true
 
       - name: Checkout
         uses: actions/checkout@main
