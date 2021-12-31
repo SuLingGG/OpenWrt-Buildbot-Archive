@@ -155,6 +155,7 @@ jobs:
             yes n | make target/compile -j1 V=s IGNORE_ERRORS=1
 
       - name: Compile Packages
+        timeout-minutes: 240
         run: |
           cd $OPENWRT_ROOT_PATH
           make package/compile -j$(nproc) IGNORE_ERRORS="y m n" BUILD_LOG=1
@@ -244,6 +245,7 @@ jobs:
         if: always()
         run: |
           sync
+          ps -ef | grep OpenWrt-Buildbot | awk '{print $2}' | xargs sudo kill -9
           sleep 30
           sudo umount $OPENWRT_ROOT_PATH || true
           sudo umount workspace/openwrt-ro || true
