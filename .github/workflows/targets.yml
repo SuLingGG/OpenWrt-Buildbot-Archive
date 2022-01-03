@@ -321,6 +321,7 @@ jobs:
         run: |
           cd $OPENWRT_ROOT_PATH
           make diffconfig buildversion feedsversion
+          cp .config bin/targets/$DEVICE_TARGET/$DEVICE_SUBTARGET/config.orig
 
       - name: Compile Kmods
         run: |
